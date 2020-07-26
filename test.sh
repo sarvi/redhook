@@ -14,11 +14,22 @@ preload () {
 set -ex
 set -o pipefail
 
-cd examples/readlinkspy
+pushd examples/varprintspy
+cargo clean
+cargo update
+cargo build
+gcc -o testprog src/test.c
+# echo "Hello World" > tmp.file
+preload libvarprintspy ./testprog | grep "^vprintf" || exit
+preload libvarprintspy ./testprog | grep "^printf" || exit
+popd
+
+pushd examples/readlinkspy
 cargo update
 cargo build
 preload libreadlinkspy ls -l /dev/stdin | grep readlink
+popd
 
-cd ../neverfree
-cargo update
-cargo build
+# cd ../neverfree
+# cargo update
+# cargo build

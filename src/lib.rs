@@ -1,3 +1,4 @@
+#![feature(c_variadic)]
 extern crate libc;
 
 use std::sync::atomic;

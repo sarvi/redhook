@@ -1,0 +1,14 @@
+[package]
+name = "redhook_ex_varprintspy"
+version = "0.0.1"
+authors = ["Sarvi Shanmugham <sarvi@yahoo.com>"]
+
+[lib]
+name = "varprintspy"
+crate_type = ["dylib"]
+
+[dependencies.redhook]
+path = "../.."
+
+[dependencies]
+libc = "0.2"
