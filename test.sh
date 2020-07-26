@@ -19,7 +19,6 @@ cargo clean
 cargo update
 cargo build
 gcc -o testprog src/test.c
-# echo "Hello World" > tmp.file
 preload libvarprintspy ./testprog | grep "^vprintf" || exit
 preload libvarprintspy ./testprog | grep "^printf" || exit
 popd
