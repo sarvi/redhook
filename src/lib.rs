@@ -1,6 +1,5 @@
 #![feature(c_variadic)]
 extern crate libc;
-
 use std::sync::atomic;
 
 #[cfg(target_env = "gnu")]

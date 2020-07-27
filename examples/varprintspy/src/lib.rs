@@ -1,11 +1,13 @@
 #![feature(c_variadic)]
 
 extern crate libc;
+extern crate tracing;
 
 #[macro_use]
 extern crate redhook;
 
 use libc::{c_char,c_int};
+use tracing::{instrument};
 
 
 vhook! {

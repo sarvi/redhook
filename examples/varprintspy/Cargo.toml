@@ -3,6 +3,7 @@ name = "redhook_ex_varprintspy"
 version = "0.0.1"
 authors = ["Sarvi Shanmugham <sarvi@yahoo.com>"]
 
+
 [lib]
 name = "varprintspy"
 crate_type = ["dylib"]
@@ -11,4 +12,5 @@ crate_type = ["dylib"]
 path = "../.."
 
 [dependencies]
-libc = "0.2"
+libc = { version = "0.2" }
+tracing = { version = "0.1.17" }

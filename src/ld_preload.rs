@@ -1,4 +1,3 @@
-
 use libc::{c_char, c_void};
 
 #[link(name = "dl")]
@@ -55,6 +54,7 @@ macro_rules! hook {
             }
         }
 
+        #[instrument]
         pub unsafe fn $hook_fn ( $($v : $t),* ) -> $r {
             $body
         }
@@ -106,6 +106,7 @@ macro_rules! vhook {
             }
         }
 
+        #[instrument]
         pub unsafe fn $hook_fn ( $($v : $t),*  , $va : $vaty) -> $r {
             $body
         }
@@ -120,17 +121,18 @@ macro_rules! vhook {
 macro_rules! dhook {
 
     (unsafe fn $real_fn:ident ( $va:ident : $vaty:ty,  $($v:ident : $t:ty),* ) -> $r:ty => $hook_fn:ident $body:block) => {
-            #[no_mangle]
-            pub unsafe extern "C" fn $real_fn ( $($v : $t),*  , $va: $vaty) -> $r {
-                // let mut ap: std::ffi::VaListImpl;
-                // ap = $va.clone();
-                ::std::panic::catch_unwind(|| {
-                    let mut aq: std::ffi::VaListImpl;
-                    aq = $va.clone();
-                    $hook_fn ( $($v),* , aq )
-                }).unwrap()
-            }
+        #[no_mangle]
+        pub unsafe extern "C" fn $real_fn ( $($v : $t),*  , $va: $vaty) -> $r {
+            // let mut ap: std::ffi::VaListImpl;
+            // ap = $va.clone();
+            ::std::panic::catch_unwind(|| {
+                let mut aq: std::ffi::VaListImpl;
+                aq = $va.clone();
+                $hook_fn ( $($v),* , aq )
+            }).unwrap()
+        }
 
+        #[instrument]
         pub unsafe fn $hook_fn ( $($v : $t),* , $va: $vaty) -> $r {
             $body
         }

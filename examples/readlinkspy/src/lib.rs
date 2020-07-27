@@ -2,7 +2,9 @@ extern crate libc;
 
 #[macro_use]
 extern crate redhook;
+extern crate tracing;
 
+use tracing::{instrument};
 use libc::{size_t,ssize_t,c_char};
 
 hook! {

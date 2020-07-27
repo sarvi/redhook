@@ -1,8 +1,10 @@
 extern crate libc;
+extern crate tracing;
 
 #[macro_use]
 extern crate redhook;
 
+use tracing::{instrument};
 use libc::uid_t;
 
 hook! {

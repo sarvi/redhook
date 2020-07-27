@@ -12,3 +12,4 @@ path = "../.."
 
 [dependencies]
 libc = "0.2"
+tracing = { version = "0.1.17" }

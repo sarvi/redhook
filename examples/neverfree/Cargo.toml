@@ -10,3 +10,4 @@ crate_type = ["dylib"]
 
 [dependencies.redhook]
 path = "../.."
+tracing = { version = "0.1.17" }
