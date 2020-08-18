@@ -54,9 +54,14 @@ macro_rules! hook {
             }
         }
 
-        #[instrument]
+        // #[instrument]
         pub unsafe fn $hook_fn ( $($v : $t),* ) -> $r {
-            $body
+            MY_DISPATCH.with(|(my_dispatch, _guard)| {
+                with_default(&my_dispatch, || {
+                    event!(Level::INFO, "{}()", stringify!($real_fn));
+                    $body
+                })
+            })
         }
     };
 
@@ -106,9 +111,14 @@ macro_rules! vhook {
             }
         }
 
-        #[instrument]
+        // #[instrument(skip( $va, $($v),* ))]
         pub unsafe fn $hook_fn ( $($v : $t),*  , $va : $vaty) -> $r {
-            $body
+            MY_DISPATCH.with(|(my_dispatch, _guard)| {
+                with_default(&my_dispatch, || {
+                    event!(Level::INFO, "{}()", stringify!($real_fn));
+                    $body
+                })
+            })
         }
     };
 
@@ -132,15 +142,20 @@ macro_rules! dhook {
             }).unwrap()
         }
 
-        #[instrument]
+        // #[instrument(skip( $va, $($v),* ))]
         pub unsafe fn $hook_fn ( $($v : $t),* , $va: $vaty) -> $r {
-            $body
+            MY_DISPATCH.with(|(my_dispatch, _guard)| {
+                with_default(&my_dispatch, || {
+                    event!(Level::INFO, "{}()", stringify!($real_fn));
+                    $body
+                })
+            })
         }
     };
 
-    // (unsafe fn $real_fn:ident ( $va:ident : $vaty:ty,  $($v:ident : $t:ty),* ) => $hook_fn:ident $body:block) => {
-    //     $crate::vhook! { unsafe fn $real_fn ( $va: $vaty, $($v : $t),* ) -> () => $hook_fn $body }
-    // };
+    (unsafe fn $real_fn:ident ( $va:ident : $vaty:ty,  $($v:ident : $t:ty),* ) => $hook_fn:ident $body:block) => {
+        $crate::dhook! { unsafe fn $real_fn ( $va: $vaty, $($v : $t),* ) -> () => $hook_fn $body }
+    };
 }
 
 #[macro_export]

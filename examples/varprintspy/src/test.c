@@ -1,7 +1,14 @@
 #include <stdio.h>
 #include <stdarg.h>
+#include <unistd.h>
 
-int testprintf(const char *format, ...)
+int testreadlink(const char *link)
+{
+    char buf[500];
+    readlink(link, buf, 500);
+}
+
+int testvprintf(const char *format, ...)
 {
     va_list argp;
 
@@ -11,9 +18,17 @@ int testprintf(const char *format, ...)
 
 }
 
-int main(int argc, char *argv)
+int testprintf(const char *str)
 {
-    testprintf("vprintf: Hello World\n");
-    printf("printf: Hello World\n");
+    printf(str);
+}
 
+
+int main()
+{
+    testreadlink("/tmp/wisk_testlink");
+    testvprintf("Hello World! from vprintf");
+    testprintf("Hello World! from printf");
+
+    return 0;
 }
