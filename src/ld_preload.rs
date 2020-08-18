@@ -1,4 +1,16 @@
-use libc::{c_char, c_void};
+extern crate libc;
+extern crate tracing;
+extern crate tracing_appender;
+extern crate tracing_subscriber;
+
+use std::env;
+use libc::{c_void,c_char};
+// use tracing::{instrument};
+use tracing::Level;
+use tracing::dispatcher::Dispatch;
+use tracing_appender::non_blocking::WorkerGuard;
+use tracing_subscriber::FmtSubscriber;
+
 
 #[link(name = "dl")]
 extern "C" {
@@ -19,6 +31,23 @@ pub unsafe fn dlsym_next(symbol: &'static str) -> *const u8 {
  * is how GNU implements it. */
 #[link_section = ".init_array"]
 pub static INITIALIZE_CTOR: extern "C" fn() = ::initialize;
+
+pub fn make_dispatch() -> (Dispatch, WorkerGuard) {
+    let file_appender;
+    if let Ok(tracefile) =  env::var("WISK_TRACEFILE") {
+        file_appender = tracing_appender::rolling::never("", tracefile)
+    } else {
+        file_appender = tracing_appender::rolling::never("", "/dev/null")
+    }
+    let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(Level::TRACE)
+        .with_writer(non_blocking)
+        .finish();
+    (Dispatch::new(subscriber), guard)
+}
+
+thread_local!(static MY_DISPATCH: (Dispatch, WorkerGuard) = make_dispatch());
 
 #[macro_export]
 macro_rules! hook {

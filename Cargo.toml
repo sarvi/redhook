@@ -11,4 +11,5 @@ license = "BSD-2-Clause"
 [dependencies]
 libc = "0.2"
 tracing = { version = "0.1.17" }
-
+tracing-appender = {version =  "0.1.1"}
+tracing-subscriber = {version = "0.2.9", features = ["chrono", "env-filter", "fmt"]}

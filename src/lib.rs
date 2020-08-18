@@ -1,5 +1,9 @@
 #![feature(c_variadic)]
 extern crate libc;
+extern crate tracing;
+extern crate tracing_appender;
+extern crate tracing_subscriber;
+
 use std::sync::atomic;
 
 #[cfg(target_env = "gnu")]
