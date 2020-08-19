@@ -6,7 +6,7 @@ extern crate tracing_subscriber;
 
 use std::env;
 use libc::{c_void,c_char};
-// use tracing::{instrument};
+// use tracing::instrument;
 use tracing::Level;
 use tracing::dispatcher::Dispatch;
 use tracing_appender::non_blocking::WorkerGuard;
@@ -94,7 +94,7 @@ macro_rules! hook {
             }
         }
 
-        // #[instrument]
+        // #[instrument(skip( $($v),* ))]
         pub unsafe fn $hook_fn ( $($v : $t),* ) -> $r {
             if stringify!($real_fn) == "fopen" && !MY_DISPATCH_initialized.with(Cell::get) {
                 $body
