@@ -1,5 +1,6 @@
 #![feature(c_variadic)]
 
+extern crate core;
 extern crate libc;
 extern crate tracing;
 extern crate tracing_appender;
@@ -8,6 +9,7 @@ extern crate tracing_subscriber;
 #[macro_use]
 extern crate redhook;
 
+use core::cell::Cell;
 use libc::{c_char,c_int,size_t,ssize_t};
 // use tracing::{instrument};
 use tracing::{Level, event, };
@@ -15,7 +17,18 @@ use tracing::dispatcher::{with_default, Dispatch};
 use tracing_appender::non_blocking::WorkerGuard;
 use redhook::ld_preload::make_dispatch;
 
-thread_local!(static MY_DISPATCH: (Dispatch, WorkerGuard) = make_dispatch());
+thread_local! {
+    #[allow(nonstandard_style)]
+    static MY_DISPATCH_initialized: ::core::cell::Cell<bool> = false.into();
+}
+thread_local! {
+    static MY_DISPATCH: (Dispatch, WorkerGuard) = {
+        let ret = make_dispatch();
+        MY_DISPATCH_initialized.with(|it| it.set(true));
+        ret
+    };
+}
+
 
 hook! {
     unsafe fn readlink(path: *const c_char, buf: *mut c_char, bufsiz: size_t) -> ssize_t => my_readlink {

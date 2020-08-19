@@ -1,3 +1,4 @@
+extern crate core;
 extern crate libc;
 extern crate tracing;
 extern crate tracing_appender;
@@ -47,7 +48,17 @@ pub fn make_dispatch() -> (Dispatch, WorkerGuard) {
     (Dispatch::new(subscriber), guard)
 }
 
-thread_local!(static MY_DISPATCH: (Dispatch, WorkerGuard) = make_dispatch());
+thread_local! {
+    #[allow(nonstandard_style)]
+    static MY_DISPATCH_initialized: ::core::cell::Cell<bool> = false.into();
+}
+thread_local! {
+    static MY_DISPATCH: (Dispatch, WorkerGuard) = {
+        let ret = make_dispatch();
+        MY_DISPATCH_initialized.with(|it| it.set(true));
+        ret
+    };
+}
 
 #[macro_export]
 macro_rules! hook {
@@ -85,12 +96,16 @@ macro_rules! hook {
 
         // #[instrument]
         pub unsafe fn $hook_fn ( $($v : $t),* ) -> $r {
-            MY_DISPATCH.with(|(my_dispatch, _guard)| {
-                with_default(&my_dispatch, || {
-                    event!(Level::INFO, "{}()", stringify!($real_fn));
-                    $body
+            if stringify!($real_fn) == "fopen" && !MY_DISPATCH_initialized.with(Cell::get) {
+                $body
+            } else {
+                MY_DISPATCH.with(|(my_dispatch, _guard)| {
+                    with_default(&my_dispatch, || {
+                        event!(Level::INFO, "{}()", stringify!($real_fn));
+                        $body
+                    })
                 })
-            })
+            }
         }
     };
 

@@ -1,4 +1,5 @@
 #![feature(c_variadic)]
+extern crate core;
 extern crate libc;
 extern crate tracing;
 extern crate tracing_appender;
