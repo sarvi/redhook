@@ -33,19 +33,23 @@ pub unsafe fn dlsym_next(symbol: &'static str) -> *const u8 {
 #[link_section = ".init_array"]
 pub static INITIALIZE_CTOR: extern "C" fn() = ::initialize;
 
-pub fn make_dispatch() -> (Dispatch, WorkerGuard) {
+pub fn make_dispatch(tracevar: &str) -> (bool, Dispatch, WorkerGuard) {
     let file_appender;
-    if let Ok(tracefile) =  env::var("WISK_TRACEFILE") {
-        file_appender = tracing_appender::rolling::never("", tracefile)
+    let tracing;
+    // if let Ok(tracefile) =  env::var("WISK_TRACEFILE") {
+    if let Ok(tracefile) =  env::var(tracevar) {
+        file_appender = tracing_appender::rolling::never("", tracefile);
+        tracing = true
     } else {
-        file_appender = tracing_appender::rolling::never("", "/dev/null")
+        file_appender = tracing_appender::rolling::never("", "/dev/null");
+        tracing = false
     }
     let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::TRACE)
         .with_writer(non_blocking)
         .finish();
-    (Dispatch::new(subscriber), guard)
+    (tracing, Dispatch::new(subscriber), guard)
 }
 
 thread_local! {
@@ -53,8 +57,8 @@ thread_local! {
     static MY_DISPATCH_initialized: ::core::cell::Cell<bool> = false.into();
 }
 thread_local! {
-    static MY_DISPATCH: (Dispatch, WorkerGuard) = {
-        let ret = make_dispatch();
+    static MY_DISPATCH: (bool, Dispatch, WorkerGuard) = {
+        let ret = make_dispatch("REDHOOK_TRACEFILE");
         MY_DISPATCH_initialized.with(|it| it.set(true));
         ret
     };
@@ -99,11 +103,16 @@ macro_rules! hook {
             if stringify!($real_fn) == "fopen" && !MY_DISPATCH_initialized.with(Cell::get) {
                 $body
             } else {
-                MY_DISPATCH.with(|(my_dispatch, _guard)| {
-                    with_default(&my_dispatch, || {
-                        event!(Level::INFO, "{}()", stringify!($real_fn));
+                MY_DISPATCH.with(|(tracing, my_dispatch, _guard)| {
+                    println!("tracing: {}", tracing);
+                    if *tracing {
+                        with_default(&my_dispatch, || {
+                            event!(Level::INFO, "{}()", stringify!($real_fn));
+                            $body
+                        })
+                    } else {
                         $body
-                    })
+                    }
                 })
             }
         }
@@ -157,11 +166,16 @@ macro_rules! vhook {
 
         // #[instrument(skip( $va, $($v),* ))]
         pub unsafe fn $hook_fn ( $($v : $t),*  , $va : $vaty) -> $r {
-            MY_DISPATCH.with(|(my_dispatch, _guard)| {
-                with_default(&my_dispatch, || {
-                    event!(Level::INFO, "{}()", stringify!($real_fn));
+            MY_DISPATCH.with(|(tracing, my_dispatch, _guard)| {
+                println!("tracing: {}", tracing);
+                if *tracing {
+                    with_default(&my_dispatch, || {
+                        event!(Level::INFO, "{}()", stringify!($real_fn));
+                        $body
+                    })
+                } else {
                     $body
-                })
+                }
             })
         }
     };
@@ -188,11 +202,16 @@ macro_rules! dhook {
 
         // #[instrument(skip( $va, $($v),* ))]
         pub unsafe fn $hook_fn ( $($v : $t),* , $va: $vaty) -> $r {
-            MY_DISPATCH.with(|(my_dispatch, _guard)| {
-                with_default(&my_dispatch, || {
-                    event!(Level::INFO, "{}()", stringify!($real_fn));
+            MY_DISPATCH.with(|(tracing, my_dispatch, _guard)| {
+                println!("tracing: {}", tracing);
+                if *tracing {
+                    with_default(&my_dispatch, || {
+                        event!(Level::INFO, "{}()", stringify!($real_fn));
+                        $body
+                    })    
+                } else {
                     $body
-                })
+                }
             })
         }
     };

@@ -22,8 +22,8 @@ thread_local! {
     static MY_DISPATCH_initialized: ::core::cell::Cell<bool> = false.into();
 }
 thread_local! {
-    static MY_DISPATCH: (Dispatch, WorkerGuard) = {
-        let ret = make_dispatch();
+    static MY_DISPATCH: (bool, Dispatch, WorkerGuard) = {
+        let ret = make_dispatch("REDHOOK_TRACEFILE");
         MY_DISPATCH_initialized.with(|it| it.set(true));
         ret
     };
