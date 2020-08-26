@@ -5,9 +5,9 @@ preload () {
     library=$1
     shift
     if [ "$(uname)" = "Darwin" ]; then
-        REDHOOK_TRACEFILE=/tmp/wisk_trace.log DYLD_INSERT_LIBRARIES=target/debug/"$library".dylib "$@"
+        REDHOOK_TRACE=/tmp/wisk_trace.log DYLD_INSERT_LIBRARIES=target/debug/"$library".dylib "$@"
     else
-        REDHOOK_TRACEFILE=/tmp/wisk_trace.log LD_PRELOAD=target/debug/"$library".so "$@"
+        REDHOOK_TRACE=/tmp/wisk_trace.log LD_PRELOAD=target/debug/"$library".so "$@"
         # LD_PRELOAD=target/debug/"$library".so "$@"
     fi
 }

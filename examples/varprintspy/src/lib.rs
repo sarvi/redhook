@@ -23,7 +23,7 @@ thread_local! {
 }
 thread_local! {
     static MY_DISPATCH: (bool, Dispatch, WorkerGuard) = {
-        let ret = make_dispatch("REDHOOK_TRACEFILE");
+        let ret = make_dispatch("REDHOOK_TRACE");
         MY_DISPATCH_initialized.with(|it| it.set(true));
         ret
     };

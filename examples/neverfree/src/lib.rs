@@ -15,9 +15,9 @@ use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::FmtSubscriber;
 
 
-fn make_dispatch() -> (bool, Dispatch, WorkerGuard) {
+fn make_dispatch() -> (bool,Dispatch, WorkerGuard) {
     let file_appender;
-    if let Ok(tracefile) =  env::var("WISK_TRACEFILE") {
+    if let Ok(tracefile) =  env::var("REDHOOK_TRACE") {
         file_appender = tracing_appender::rolling::never("", tracefile)
     } else {
         file_appender = tracing_appender::rolling::never("", "/dev/null")
