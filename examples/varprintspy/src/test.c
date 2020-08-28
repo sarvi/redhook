@@ -18,17 +18,17 @@ int testvprintf(const char *format, ...)
 
 }
 
-int testprintf(const char *str)
+int testprintf(const char *str, int i, float f, char *s)
 {
-    printf(str);
+    printf(str, i, f, s);
 }
 
 
 int main()
 {
     testreadlink("/tmp/wisk_testlink");
-    testvprintf("Hello World! from vprintf");
-    testprintf("Hello World! from printf");
+    testvprintf("Hello World! from vprintf: %d %f %s \n", 100, 1.23456, "something");
+    testprintf("Hello World! from printf: %d %f %s \n", 100, 1.23456, "something");
 
     return 0;
 }

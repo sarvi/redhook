@@ -155,7 +155,7 @@ macro_rules! vhook {
                 if $crate::initialized() {
                     ::std::panic::catch_unwind(|| {
                         let mut aq: std::ffi::VaListImpl;
-                        aq = ap.clone();
+                        aq = $va.clone();
                         $hook_fn ( $($v),* , aq.as_va_list())
                     }).ok()
                 } else {
@@ -167,7 +167,7 @@ macro_rules! vhook {
         // #[instrument(skip( $va, $($v),* ))]
         pub unsafe fn $hook_fn ( $($v : $t),*  , $va : $vaty) -> $r {
             MY_DISPATCH.with(|(tracing, my_dispatch, _guard)| {
-                println!("tracing: {}", tracing);
+                // println!("tracing: {} {:?}", tracing, $va);
                 if *tracing {
                     with_default(&my_dispatch, || {
                         event!(Level::INFO, "{}()", stringify!($real_fn));
@@ -190,9 +190,7 @@ macro_rules! dhook {
 
     (unsafe fn $real_fn:ident ( $va:ident : $vaty:ty,  $($v:ident : $t:ty),* ) -> $r:ty => $hook_fn:ident $body:block) => {
         #[no_mangle]
-        pub unsafe extern "C" fn $real_fn ( $($v : $t),*  , $va: $vaty) -> $r {
-            // let mut ap: std::ffi::VaListImpl;
-            // ap = $va.clone();
+        pub unsafe extern "C" fn $real_fn ( $($v : $t),*  , $va: ...) -> $r {
             ::std::panic::catch_unwind(|| {
                 let mut aq: std::ffi::VaListImpl;
                 aq = $va.clone();
@@ -203,7 +201,7 @@ macro_rules! dhook {
         // #[instrument(skip( $va, $($v),* ))]
         pub unsafe fn $hook_fn ( $($v : $t),* , $va: $vaty) -> $r {
             MY_DISPATCH.with(|(tracing, my_dispatch, _guard)| {
-                println!("tracing: {}", tracing);
+                // println!("tracing: {}, {:?}", tracing, $va);
                 if *tracing {
                     with_default(&my_dispatch, || {
                         event!(Level::INFO, "{}()", stringify!($real_fn));

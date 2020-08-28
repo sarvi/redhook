@@ -69,18 +69,3 @@ dhook! {
         my_vprintf(format, aq.as_va_list())
     }
 }
-
-// #[no_mangle]
-// pub unsafe extern "C" fn vprintf (_format: *const c_char, mut _args: std::ffi::VaList)  -> c_int {
-//     println!("Rust: vprintf -> Intercept");
-//     0
-// }
-
-
-// #[no_mangle]
-// pub unsafe extern "C" fn printf (format: *const c_char, ...)  -> c_int {
-//     let message = std::ffi::CStr::from_ptr(format).to_string_lossy();
-//     eprintln!("Rust: {}", message);
-//     println!("Rust: printf --> intercept");
-//     0
-// }
