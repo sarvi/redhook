@@ -188,6 +188,34 @@ macro_rules! vhook {
 #[macro_export]
 macro_rules! dhook {
 
+    // The orig_hook is needed because variadic functions cannot be associated functions for a structure
+    // There is a bug open on this against rust and is being fixed.
+    // Until then we need to store the real function pointer in a separately named structure
+    (unsafe fn $real_fn:ident ( $va:ident : $vaty:ty,  $($v:ident : $t:ty),* ) -> $r:ty => ($hook_fn:ident, $orig_fn:ident)  $body:block) => {
+        #[allow(non_camel_case_types)]
+        pub struct $orig_fn {__private_field: ()}
+        #[allow(non_upper_case_globals)]
+        static $orig_fn: $orig_fn = $orig_fn {__private_field: ()};
+
+        impl $orig_fn {
+            fn get(&self) -> unsafe extern "C" fn ( $($v : $t),* , $va : ...) -> $r {
+                use ::std::sync::Once;
+
+                static mut REAL: *const u8 = 0 as *const u8;
+                static mut ONCE: Once = Once::new();
+
+                unsafe {
+                    ONCE.call_once(|| {
+                        REAL = $crate::ld_preload::dlsym_next(concat!(stringify!($real_fn), "\0"));
+                    });
+                    ::std::mem::transmute(REAL)
+                }
+            }
+        }
+
+        $crate::dhook! { unsafe fn $real_fn ( $va: $vaty, $($v : $t),* ) -> $r => $hook_fn $body }
+    };
+
     (unsafe fn $real_fn:ident ( $va:ident : $vaty:ty,  $($v:ident : $t:ty),* ) -> $r:ty => $hook_fn:ident $body:block) => {
         #[no_mangle]
         pub unsafe extern "C" fn $real_fn ( $($v : $t),*  , $va: ...) -> $r {
@@ -214,9 +242,14 @@ macro_rules! dhook {
         }
     };
 
+    (unsafe fn $real_fn:ident ( $va:ident : $vaty:ty,  $($v:ident : $t:ty),* ) => ($hook_fn:ident, $hook_str:ident) $body:block) => {
+        $crate::dhook! { unsafe fn $real_fn ( $va: $vaty, $($v : $t),* ) -> () => ($hook_fn, $hook_str) $body }
+    };
+
     (unsafe fn $real_fn:ident ( $va:ident : $vaty:ty,  $($v:ident : $t:ty),* ) => $hook_fn:ident $body:block) => {
         $crate::dhook! { unsafe fn $real_fn ( $va: $vaty, $($v : $t),* ) -> () => $hook_fn $body }
     };
+
 }
 
 #[macro_export]

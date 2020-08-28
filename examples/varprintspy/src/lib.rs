@@ -10,7 +10,8 @@ extern crate tracing_subscriber;
 extern crate redhook;
 
 use core::cell::Cell;
-use libc::{c_char,c_int,size_t,ssize_t};
+use std::ffi::CStr;
+use libc::{c_char,c_int,size_t,ssize_t, O_CREAT};
 // use tracing::{instrument};
 use tracing::{Level, event, };
 use tracing::dispatcher::{with_default, Dispatch};
@@ -67,5 +68,24 @@ dhook! {
             println!("Rust: dprintf(...) -> Intercepted");
         }
         my_vprintf(format, aq.as_va_list())
+    }
+}
+
+dhook! {
+    unsafe fn open(args: std::ffi::VaListImpl, pathname: *const c_char, flags: c_int ) -> c_int => (my_open, orig_open) {
+        if let Ok(pathname) = std::str::from_utf8(std::ffi::CStr::from_ptr(pathname).to_bytes()) {
+            println!("Rust: dopen('{}', {}) -> Intercepted", pathname, flags);
+        } else {
+            println!("Rust: dopen(...) -> Intercepted");
+        }
+        if (flags & O_CREAT) == O_CREAT {
+            let mut ap: std::ffi::VaListImpl = args.clone();
+            let mode: c_int = ap.arg::<c_int>();
+            println!("open({},{}(CREAT),{})", CStr::from_ptr(pathname).to_str().unwrap(), flags, mode);
+            real!(orig_open)(pathname, flags, mode)
+        } else {
+            println!("open({},{})", CStr::from_ptr(pathname).to_str().unwrap(), flags);
+            real!(orig_open)(pathname, flags)
+        }
     }
 }

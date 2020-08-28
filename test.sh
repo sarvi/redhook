@@ -24,7 +24,7 @@ rm -f /tmp/wisk_trace.log
 touch /tmp/wisk_testfile
 ln -sf /tmp/wisk_testfile /tmp/wisk_testlink
 printf "\n\nRUST LD_PRELOAD"
-preload libvarprintspy ./testprog || exit
+# preload libvarprintspy ./testprog || exit
 
 preload libvarprintspy ./testprog | grep "^readlink('/tmp/wisk_testlink') -> Intercepted" || exit
 
@@ -34,6 +34,10 @@ preload libvarprintspy ./testprog | grep "^Hello World! from vprintf: 100 1.2345
 preload libvarprintspy ./testprog | grep "^Rust: dprintf('Hello World! from printf: %d %f %s" || exit
 preload libvarprintspy ./testprog | grep "^Rust: vprintf('Hello World! from printf: %d %f %s" || exit
 preload libvarprintspy ./testprog | grep "^Hello World! from printf: 100 1.234560 something" || exit
+
+preload libvarprintspy ./testprog | grep "^open(/tmp/created.file,65(CREAT),0)" || exit
+preload libvarprintspy ./testprog | grep "^open(/tmp/created.file,0)" || exit
+
 test -f /tmp/wisk_trace.log && cat /tmp/wisk_trace.log
 # printf "\n\nC LD_PRELOAD"
 # cc -fPIC --shared -o target/debug/libtestprog.so src/libtest.c

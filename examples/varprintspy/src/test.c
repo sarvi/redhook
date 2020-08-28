@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>  
 
 int testreadlink(const char *link)
 {
@@ -29,6 +32,10 @@ int main()
     testreadlink("/tmp/wisk_testlink");
     testvprintf("Hello World! from vprintf: %d %f %s \n", 100, 1.23456, "something");
     testprintf("Hello World! from printf: %d %f %s \n", 100, 1.23456, "something");
+    close(open("/tmp/created.file", O_CREAT|O_WRONLY, 0));
+    close(open("/tmp/created.file", O_RDONLY, 0));
+
+
 
     return 0;
 }
