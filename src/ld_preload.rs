@@ -104,7 +104,7 @@ macro_rules! hook {
                 $body
             } else {
                 MY_DISPATCH.with(|(tracing, my_dispatch, _guard)| {
-                    println!("tracing: {}", tracing);
+                    // println!("tracing: {}", tracing);
                     if *tracing {
                         with_default(&my_dispatch, || {
                             event!(Level::INFO, "{}()", stringify!($real_fn));
