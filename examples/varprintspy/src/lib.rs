@@ -8,7 +8,10 @@ extern crate tracing_subscriber;
 
 #[macro_use]
 extern crate redhook;
+#[macro_use]
+extern crate ctor;
 
+use std::sync::atomic;
 use core::cell::Cell;
 use std::ffi::CStr;
 use libc::{c_char,c_int,size_t,ssize_t, O_CREAT};
@@ -29,6 +32,37 @@ thread_local! {
         ret
     };
 }
+
+/* Some Rust library functionality (e.g., jemalloc) initializes
+ * lazily, after the hooking library has inserted itself into the call
+ * path. If the initialization uses any hooked functions, this will lead
+ * to an infinite loop. Work around this by running some initialization
+ * code in a static constructor, and bypassing all hooks until it has
+ * completed. */
+
+ static INIT_STATE: atomic::AtomicBool = atomic::AtomicBool::new(false);
+
+ pub fn initialized() -> bool {
+     INIT_STATE.load(atomic::Ordering::SeqCst)
+ }
+
+ // extern "C" fn initialize() {
+ //     Box::new(0u8);
+ //     INIT_STATE.store(true, atomic::Ordering::SeqCst);
+ // }
+
+ // /* Rust doesn't directly expose __attribute__((constructor)), but this
+ //  * is how GNU implements it. */
+ //  #[link_section = ".init_array"]
+ //  pub static INITIALIZE_CTOR: extern "C" fn() = ::initialize;
+
+ #[ctor]
+ fn initialize() {
+     Box::new(0u8);
+     INIT_STATE.store(true, atomic::Ordering::SeqCst);
+     println!("Constructor");
+ }
+
 
 
 hook! {

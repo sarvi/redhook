@@ -12,6 +12,7 @@ crate_type = ["dylib"]
 path = "../.."
 
 [dependencies]
+ctor = "0.1.15"
 libc = { version = "0.2" }
 tracing = { version = "0.1.17" }
 tracing-appender = {version =  "0.1.1"}
