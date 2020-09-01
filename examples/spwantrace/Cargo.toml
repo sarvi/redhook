@@ -1,0 +1,17 @@
+[package]
+name = "readlink"
+version = "0.1.0"
+authors = ["Saravanan Shanmugham <sarvi@cisco.com>"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "readlink"
+crate_type = ["dylib"]
+
+[dependencies]
+libc = "0.2"
+tracing = { version = "0.1.17" }
+tracing-appender = {version =  "0.1.1"}
+tracing-subscriber = {version = "0.2.9", features = ["chrono", "env-filter", "fmt"]}
+
