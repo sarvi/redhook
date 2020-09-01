@@ -19,24 +19,26 @@ pushd examples/varprintspy
 # cargo clean
 # cargo update
 cargo build
-cc -o testprog src/test.c
+cc -Werror -o testprog src/test.c || exit "Testprog Compile Error"
 rm -f /tmp/wisk_trace.log
 touch /tmp/wisk_testfile
 ln -sf /tmp/wisk_testfile /tmp/wisk_testlink
 printf "\n\nRUST LD_PRELOAD"
-# preload libvarprintspy ./testprog || exit
+# preload libvarprintspy ./testprog printf || exit
+preload libvarprintspy ./testprog readlink || exit
 
-preload libvarprintspy ./testprog | grep "^readlink('/tmp/wisk_testlink') -> Intercepted" || exit
+preload libvarprintspy ./testprog readlink | grep "^readlink(/tmp/wisk_testlink)" || exit
 
-preload libvarprintspy ./testprog | grep "^Rust: vprintf('Hello World! from vprintf: %d %f %s" || exit
-preload libvarprintspy ./testprog | grep "^Hello World! from vprintf: 100 1.234560 something" || exit
+preload libvarprintspy ./testprog vprintf || exit
+preload libvarprintspy ./testprog vprintf | grep "^Hello World! from vprintf: 100 1.234560 something" || exit
 
-preload libvarprintspy ./testprog | grep "^Rust: dprintf('Hello World! from printf: %d %f %s" || exit
-preload libvarprintspy ./testprog | grep "^Rust: vprintf('Hello World! from printf: %d %f %s" || exit
-preload libvarprintspy ./testprog | grep "^Hello World! from printf: 100 1.234560 something" || exit
+preload libvarprintspy ./testprog printf || exit
+preload libvarprintspy ./testprog printf | grep "^Hello World! from printf: 100 1.234560 something" || exit
 
-preload libvarprintspy ./testprog | grep "^open(/tmp/created.file,65(CREAT),0)" || exit
-preload libvarprintspy ./testprog | grep "^open(/tmp/created.file,0)" || exit
+preload libvarprintspy ./testprog creat-cw || exit
+preload libvarprintspy ./testprog creat-cw | grep "^open(/tmp/created.file,65(CREAT),0)" || exit
+preload libvarprintspy ./testprog creat-r || exit
+preload libvarprintspy ./testprog creat-r | grep "^open(/tmp/created.file,0)" || exit
 
 test -f /tmp/wisk_trace.log && cat /tmp/wisk_trace.log
 # printf "\n\nC LD_PRELOAD"
