@@ -46,18 +46,6 @@ pub fn make_dispatch(tracevar: &str) -> (bool, Dispatch, WorkerGuard) {
     (tracing, Dispatch::new(subscriber), guard)
 }
 
-thread_local! {
-    #[allow(nonstandard_style)]
-    static MY_DISPATCH_initialized: ::core::cell::Cell<bool> = false.into();
-}
-thread_local! {
-    static MY_DISPATCH: (bool, Dispatch, WorkerGuard) = {
-        let ret = make_dispatch("REDHOOK_TRACE");
-        MY_DISPATCH_initialized.with(|it| it.set(true));
-        ret
-    };
-}
-
 #[macro_export]
 macro_rules! hook {
 
