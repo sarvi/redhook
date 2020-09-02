@@ -26,7 +26,7 @@ pub fn initialized() -> bool {
     INIT_STATE.load(atomic::Ordering::SeqCst)
 }
 
-extern "C" fn initialize() {
+pub fn initialize() {
     Box::new(0u8);
     INIT_STATE.store(true, atomic::Ordering::SeqCst);
 }

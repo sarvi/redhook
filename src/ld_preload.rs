@@ -28,15 +28,9 @@ pub unsafe fn dlsym_next(symbol: &'static str) -> *const u8 {
     ptr as *const u8
 }
 
-/* Rust doesn't directly expose __attribute__((constructor)), but this
- * is how GNU implements it. */
-#[link_section = ".init_array"]
-pub static INITIALIZE_CTOR: extern "C" fn() = ::initialize;
-
 pub fn make_dispatch(tracevar: &str) -> (bool, Dispatch, WorkerGuard) {
     let file_appender;
     let tracing;
-    // if let Ok(tracefile) =  env::var("WISK_TRACEFILE") {
     if let Ok(tracefile) =  env::var(tracevar) {
         file_appender = tracing_appender::rolling::never("", tracefile);
         tracing = true
