@@ -46,10 +46,12 @@ pub fn make_dispatch(tracevar: &str) -> (bool, Dispatch, WorkerGuard) {
     (tracing, Dispatch::new(subscriber), guard)
 }
 
+/* TODO: Using { $($body:tt)* } instead of $body:block) because of rustc bug refered to
+   in https://github.com/dtolnay/paste/issues/50 */
 #[macro_export]
 macro_rules! hook {
 
-    (unsafe fn $real_fn:ident ( $($v:ident : $t:ty),* ) -> $r:ty => $hook_fn:ident $body:block) => {
+    (unsafe fn $real_fn:ident ( $($v:ident : $t:ty),* ) -> $r:ty => $hook_fn:ident { $($body:tt)* }) => {
         #[allow(non_camel_case_types)]
         pub struct $real_fn {__private_field: ()}
         #[allow(non_upper_case_globals)]
@@ -83,25 +85,25 @@ macro_rules! hook {
         // #[instrument(skip( $($v),* ))]
         pub unsafe fn $hook_fn ( $($v : $t),* ) -> $r {
             if stringify!($real_fn) == "fopen" && !MY_DISPATCH_initialized.with(Cell::get) {
-                $body
+                $($body)*
             } else {
                 MY_DISPATCH.with(|(tracing, my_dispatch, _guard)| {
                     // println!("tracing: {}", tracing);
                     if *tracing {
                         with_default(&my_dispatch, || {
                             event!(Level::INFO, "{}()", stringify!($real_fn));
-                            $body
+                            $($body)*
                         })
                     } else {
-                        $body
+                        $($body)*
                     }
                 })
             }
         }
     };
 
-    (unsafe fn $real_fn:ident ( $($v:ident : $t:ty),* ) => $hook_fn:ident $body:block) => {
-        $crate::hook! { unsafe fn $real_fn ( $($v : $t),* ) -> () => $hook_fn $body }
+    (unsafe fn $real_fn:ident ( $($v:ident : $t:ty),* ) => $hook_fn:ident { $($body:tt)* }) => {
+        $crate::hook! { unsafe fn $real_fn ( $($v : $t),* ) -> () => $hook_fn { $($body)* } }
     };
 }
 
@@ -109,7 +111,7 @@ macro_rules! hook {
 #[macro_export]
 macro_rules! vhook {
 
-    (unsafe fn $real_fn:ident ( $va:ident : $vaty:ty,  $($v:ident : $t:ty),* ) -> $r:ty => $hook_fn:ident $body:block) => {
+    (unsafe fn $real_fn:ident ( $va:ident : $vaty:ty,  $($v:ident : $t:ty),* ) -> $r:ty => $hook_fn:ident { $($body:tt)* }) => {
         #[allow(non_camel_case_types)]
         pub struct $real_fn {__private_field: ()}
         #[allow(non_upper_case_globals)]
@@ -153,17 +155,17 @@ macro_rules! vhook {
                 if *tracing {
                     with_default(&my_dispatch, || {
                         event!(Level::INFO, "{}()", stringify!($real_fn));
-                        $body
+                        $($body)*
                     })
                 } else {
-                    $body
+                    $($body)*
                 }
             })
         }
     };
 
-    (unsafe fn $real_fn:ident ( $($v:ident : $t:ty),* ) => $hook_fn:ident $body:block) => {
-        $crate::hook! { unsafe fn $real_fn ( $($v : $t),* ) -> () => $hook_fn $body }
+    (unsafe fn $real_fn:ident ( $($v:ident : $t:ty),* ) => $hook_fn:ident { $($body:tt)* }) => {
+        $crate::hook! { unsafe fn $real_fn ( $($v : $t),* ) -> () => $hook_fn { $($body)* } }
     };
 }
 
@@ -173,7 +175,7 @@ macro_rules! dhook {
     // The orig_hook is needed because variadic functions cannot be associated functions for a structure
     // There is a bug open on this against rust and is being fixed.
     // Until then we need to store the real function pointer in a separately named structure
-    (unsafe fn $real_fn:ident ( $va:ident : $vaty:ty,  $($v:ident : $t:ty),* ) -> $r:ty => ($hook_fn:ident, $orig_fn:ident)  $body:block) => {
+    (unsafe fn $real_fn:ident ( $va:ident : $vaty:ty,  $($v:ident : $t:ty),* ) -> $r:ty => ($hook_fn:ident, $orig_fn:ident)  { $($body:tt)* }) => {
         #[allow(non_camel_case_types)]
         pub struct $orig_fn {__private_field: ()}
         #[allow(non_upper_case_globals)]
@@ -195,10 +197,10 @@ macro_rules! dhook {
             }
         }
 
-        $crate::dhook! { unsafe fn $real_fn ( $va: $vaty, $($v : $t),* ) -> $r => $hook_fn $body }
+        $crate::dhook! { unsafe fn $real_fn ( $va: $vaty, $($v : $t),* ) -> $r => $hook_fn { $($body)* } }
     };
 
-    (unsafe fn $real_fn:ident ( $va:ident : $vaty:ty,  $($v:ident : $t:ty),* ) -> $r:ty => $hook_fn:ident $body:block) => {
+    (unsafe fn $real_fn:ident ( $va:ident : $vaty:ty,  $($v:ident : $t:ty),* ) -> $r:ty => $hook_fn:ident { $($body:tt)* }) => {
         #[no_mangle]
         pub unsafe extern "C" fn $real_fn ( $($v : $t),*  , $va: ...) -> $r {
             ::std::panic::catch_unwind(|| {
@@ -215,21 +217,21 @@ macro_rules! dhook {
                 if *tracing {
                     with_default(&my_dispatch, || {
                         event!(Level::INFO, "{}()", stringify!($real_fn));
-                        $body
+                        $($body)*
                     })    
                 } else {
-                    $body
+                    $($body)*
                 }
             })
         }
     };
 
-    (unsafe fn $real_fn:ident ( $va:ident : $vaty:ty,  $($v:ident : $t:ty),* ) => ($hook_fn:ident, $hook_str:ident) $body:block) => {
-        $crate::dhook! { unsafe fn $real_fn ( $va: $vaty, $($v : $t),* ) -> () => ($hook_fn, $hook_str) $body }
+    (unsafe fn $real_fn:ident ( $va:ident : $vaty:ty,  $($v:ident : $t:ty),* ) => ($hook_fn:ident, $hook_str:ident) { $($body:tt)* }) => {
+        $crate::dhook! { unsafe fn $real_fn ( $va: $vaty, $($v : $t),* ) -> () => ($hook_fn, $hook_str) { $($body)* } }
     };
 
-    (unsafe fn $real_fn:ident ( $va:ident : $vaty:ty,  $($v:ident : $t:ty),* ) => $hook_fn:ident $body:block) => {
-        $crate::dhook! { unsafe fn $real_fn ( $va: $vaty, $($v : $t),* ) -> () => $hook_fn $body }
+    (unsafe fn $real_fn:ident ( $va:ident : $vaty:ty,  $($v:ident : $t:ty),* ) => $hook_fn:ident { $($body:tt)* }) => {
+        $crate::dhook! { unsafe fn $real_fn ( $va: $vaty, $($v : $t),* ) -> () => $hook_fn { $($body)* } }
     };
 
 }
