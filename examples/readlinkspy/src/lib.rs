@@ -3,6 +3,7 @@ extern crate libc;
 extern crate tracing;
 extern crate tracing_appender;
 extern crate tracing_subscriber;
+extern crate paste;
 
 #[macro_use]
 extern crate redhook;
@@ -12,6 +13,7 @@ extern crate ctor;
 // use tracing::{instrument};
 use core::cell::Cell;
 use libc::{size_t,ssize_t,c_char};
+use paste::paste;
 use tracing::{Level, event, };
 use tracing::dispatcher::{with_default, Dispatch};
 use tracing_appender::non_blocking::WorkerGuard;

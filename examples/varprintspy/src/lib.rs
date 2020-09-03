@@ -5,7 +5,7 @@ extern crate libc;
 extern crate tracing;
 extern crate tracing_appender;
 extern crate tracing_subscriber;
-
+extern crate paste;
 #[macro_use]
 extern crate redhook;
 #[macro_use]
@@ -14,6 +14,7 @@ extern crate ctor;
 use core::cell::Cell;
 use std::ffi::CStr;
 use libc::{c_char,c_int,size_t,ssize_t, O_CREAT};
+use paste::paste;
 // use tracing::{instrument};
 use tracing::{Level, event, };
 use tracing::dispatcher::{with_default, Dispatch};
@@ -66,16 +67,16 @@ dhook! {
 }
 
 dhook! {
-    unsafe fn open(args: std::ffi::VaListImpl, pathname: *const c_char, flags: c_int ) -> c_int => (my_open, orig_open) {
+    unsafe fn open(args: std::ffi::VaListImpl, pathname: *const c_char, flags: c_int ) -> c_int => my_open {
         event!(Level::INFO, "printf({}, {})", CStr::from_ptr(pathname).to_string_lossy(), flags);
         if (flags & O_CREAT) == O_CREAT {
             let mut ap: std::ffi::VaListImpl = args.clone();
             let mode: c_int = ap.arg::<c_int>();
             println!("open({},{}(CREAT),{})", CStr::from_ptr(pathname).to_string_lossy(), flags, mode);
-            real!(orig_open)(pathname, flags, mode)
+            real!(open)(pathname, flags, mode)
         } else {
             println!("open({},{})", CStr::from_ptr(pathname).to_string_lossy(), flags);
-            real!(orig_open)(pathname, flags)
+            real!(open)(pathname, flags)
         }
     }
 }

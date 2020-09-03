@@ -52,52 +52,54 @@ pub fn make_dispatch(tracevar: &str) -> (bool, Dispatch, WorkerGuard) {
 macro_rules! hook {
 
     (unsafe fn $real_fn:ident ( $($v:ident : $t:ty),* ) -> $r:ty => $hook_fn:ident { $($body:tt)* }) => {
-        #[allow(non_camel_case_types)]
-        pub struct $real_fn {__private_field: ()}
-        #[allow(non_upper_case_globals)]
-        static $real_fn: $real_fn = $real_fn {__private_field: ()};
-
-        impl $real_fn {
-            fn get(&self) -> unsafe extern fn ( $($v : $t),* ) -> $r {
-                use ::std::sync::Once;
-
-                static mut REAL: *const u8 = 0 as *const u8;
-                static mut ONCE: Once = Once::new();
-
-                unsafe {
-                    ONCE.call_once(|| {
-                        REAL = $crate::ld_preload::dlsym_next(concat!(stringify!($real_fn), "\0"));
-                    });
-                    ::std::mem::transmute(REAL)
+        paste! {
+            #[allow(non_camel_case_types)]
+            pub struct [<orig_ $real_fn>] {__private_field: ()}
+            #[allow(non_upper_case_globals)]
+            static [<orig_ $real_fn>]: [<orig_ $real_fn>] = [<orig_ $real_fn>] {__private_field: ()};
+    
+            impl [<orig_ $real_fn>] {
+                fn get(&self) -> unsafe extern fn ( $($v : $t),* ) -> $r {
+                    use ::std::sync::Once;
+    
+                    static mut REAL: *const u8 = 0 as *const u8;
+                    static mut ONCE: Once = Once::new();
+    
+                    unsafe {
+                        ONCE.call_once(|| {
+                            REAL = $crate::ld_preload::dlsym_next(concat!(stringify!($real_fn), "\0"));
+                        });
+                        ::std::mem::transmute(REAL)
+                    }
                 }
             }
-
+    
             #[no_mangle]
             pub unsafe extern "C" fn $real_fn ( $($v : $t),* ) -> $r {
                 if $crate::initialized() {
                     ::std::panic::catch_unwind(|| $hook_fn ( $($v),* )).ok()
                 } else {
                     None
-                }.unwrap_or_else(|| $real_fn.get() ( $($v),* ))
+                }.unwrap_or_else(|| [<orig_ $real_fn>].get() ( $($v),* ))
             }
-        }
 
-        // #[instrument(skip( $($v),* ))]
-        pub unsafe fn $hook_fn ( $($v : $t),* ) -> $r {
-            if stringify!($real_fn) == "fopen" && !MY_DISPATCH_initialized.with(Cell::get) {
-                $($body)*
-            } else {
-                MY_DISPATCH.with(|(tracing, my_dispatch, _guard)| {
-                    // println!("tracing: {}", tracing);
-                    if *tracing {
-                        with_default(&my_dispatch, || {
-                            event!(Level::INFO, "{}()", stringify!($real_fn));
+            // #[instrument(skip( $($v),* ))]
+            pub unsafe fn $hook_fn ( $($v : $t),* ) -> $r {
+                if stringify!($real_fn) == "fopen" && !MY_DISPATCH_initialized.with(Cell::get) {
+                    $($body)*
+                } else {
+                    MY_DISPATCH.with(|(tracing, my_dispatch, _guard)| {
+                        // println!("tracing: {}", tracing);
+                        if *tracing {
+                            with_default(&my_dispatch, || {
+                                event!(Level::INFO, "{}()", stringify!($real_fn));
+                                $($body)*
+                            })
+                        } else {
                             $($body)*
-                        })
-                    } else {
-                        $($body)*
-                    }
-                })
+                        }
+                    })
+                }
             }
         }
     };
@@ -112,26 +114,28 @@ macro_rules! hook {
 macro_rules! vhook {
 
     (unsafe fn $real_fn:ident ( $va:ident : $vaty:ty,  $($v:ident : $t:ty),* ) -> $r:ty => $hook_fn:ident { $($body:tt)* }) => {
-        #[allow(non_camel_case_types)]
-        pub struct $real_fn {__private_field: ()}
-        #[allow(non_upper_case_globals)]
-        static $real_fn: $real_fn = $real_fn {__private_field: ()};
-
-        impl $real_fn {
-            fn get(&self) -> unsafe extern fn ( $($v : $t),* , $va : $vaty) -> $r {
-                use ::std::sync::Once;
-
-                static mut REAL: *const u8 = 0 as *const u8;
-                static mut ONCE: Once = Once::new();
-
-                unsafe {
-                    ONCE.call_once(|| {
-                        REAL = $crate::ld_preload::dlsym_next(concat!(stringify!($real_fn), "\0"));
-                    });
-                    ::std::mem::transmute(REAL)
+        paste! {
+            #[allow(non_camel_case_types)]
+            pub struct [<orig_ $real_fn>] {__private_field: ()}
+            #[allow(non_upper_case_globals)]
+            static [<orig_ $real_fn>]: [<orig_ $real_fn>] = [<orig_ $real_fn>] {__private_field: ()};
+    
+            impl [<orig_ $real_fn>] {
+                fn get(&self) -> unsafe extern fn ( $($v : $t),* , $va : $vaty) -> $r {
+                    use ::std::sync::Once;
+    
+                    static mut REAL: *const u8 = 0 as *const u8;
+                    static mut ONCE: Once = Once::new();
+    
+                    unsafe {
+                        ONCE.call_once(|| {
+                            REAL = $crate::ld_preload::dlsym_next(concat!(stringify!($real_fn), "\0"));
+                        });
+                        ::std::mem::transmute(REAL)
+                    }
                 }
             }
-
+    
             #[no_mangle]
             pub unsafe extern "C" fn $real_fn ( $($v : $t),*  , $va : $vaty) -> $r {
                 let mut ap: std::ffi::VaListImpl;
@@ -144,24 +148,25 @@ macro_rules! vhook {
                     }).ok()
                 } else {
                     None
-                }.unwrap_or_else(|| $real_fn.get() ( $($v),*  , ap.as_va_list()))
+                }.unwrap_or_else(|| [<orig_ $real_fn>].get() ( $($v),*  , ap.as_va_list()))
             }
+
+            // #[instrument(skip( $va, $($v),* ))]
+            pub unsafe fn $hook_fn ( $($v : $t),*  , $va : $vaty) -> $r {
+                MY_DISPATCH.with(|(tracing, my_dispatch, _guard)| {
+                    // println!("tracing: {} {:?}", tracing, $va);
+                    if *tracing {
+                        with_default(&my_dispatch, || {
+                            event!(Level::INFO, "{}()", stringify!($real_fn));
+                            $($body)*
+                        })
+                    } else {
+                        $($body)*
+                    }
+                })
+            }    
         }
 
-        // #[instrument(skip( $va, $($v),* ))]
-        pub unsafe fn $hook_fn ( $($v : $t),*  , $va : $vaty) -> $r {
-            MY_DISPATCH.with(|(tracing, my_dispatch, _guard)| {
-                // println!("tracing: {} {:?}", tracing, $va);
-                if *tracing {
-                    with_default(&my_dispatch, || {
-                        event!(Level::INFO, "{}()", stringify!($real_fn));
-                        $($body)*
-                    })
-                } else {
-                    $($body)*
-                }
-            })
-        }
     };
 
     (unsafe fn $real_fn:ident ( $($v:ident : $t:ty),* ) => $hook_fn:ident { $($body:tt)* }) => {
@@ -175,59 +180,54 @@ macro_rules! dhook {
     // The orig_hook is needed because variadic functions cannot be associated functions for a structure
     // There is a bug open on this against rust and is being fixed.
     // Until then we need to store the real function pointer in a separately named structure
-    (unsafe fn $real_fn:ident ( $va:ident : $vaty:ty,  $($v:ident : $t:ty),* ) -> $r:ty => ($hook_fn:ident, $orig_fn:ident)  { $($body:tt)* }) => {
-        #[allow(non_camel_case_types)]
-        pub struct $orig_fn {__private_field: ()}
-        #[allow(non_upper_case_globals)]
-        static $orig_fn: $orig_fn = $orig_fn {__private_field: ()};
-
-        impl $orig_fn {
-            fn get(&self) -> unsafe extern "C" fn ( $($v : $t),* , $va : ...) -> $r {
-                use ::std::sync::Once;
-
-                static mut REAL: *const u8 = 0 as *const u8;
-                static mut ONCE: Once = Once::new();
-
-                unsafe {
-                    ONCE.call_once(|| {
-                        REAL = $crate::ld_preload::dlsym_next(concat!(stringify!($real_fn), "\0"));
-                    });
-                    ::std::mem::transmute(REAL)
+    (unsafe fn $real_fn:ident ( $va:ident : $vaty:ty,  $($v:ident : $t:ty),* ) -> $r:ty => $hook_fn:ident  { $($body:tt)* }) => {
+        paste! {
+            #[allow(non_camel_case_types)]
+            pub struct [<orig_ $real_fn>] {__private_field: ()}
+            #[allow(non_upper_case_globals)]
+            static [<orig_ $real_fn>]: [<orig_ $real_fn>] = [<orig_ $real_fn>] {__private_field: ()};
+    
+            impl [<orig_ $real_fn>] {
+                fn get(&self) -> unsafe extern "C" fn ( $($v : $t),* , $va : ...) -> $r {
+                    use ::std::sync::Once;
+    
+                    static mut REAL: *const u8 = 0 as *const u8;
+                    static mut ONCE: Once = Once::new();
+    
+                    unsafe {
+                        ONCE.call_once(|| {
+                            REAL = $crate::ld_preload::dlsym_next(concat!(stringify!($real_fn), "\0"));
+                        });
+                        ::std::mem::transmute(REAL)
+                    }
                 }
             }
+
+            #[no_mangle]
+            pub unsafe extern "C" fn $real_fn ( $($v : $t),*  , $va: ...) -> $r {
+                ::std::panic::catch_unwind(|| {
+                    let mut aq: std::ffi::VaListImpl;
+                    aq = $va.clone();
+                    $hook_fn ( $($v),* , aq )
+                }).unwrap()
+            }
+
         }
 
-        $crate::dhook! { unsafe fn $real_fn ( $va: $vaty, $($v : $t),* ) -> $r => $hook_fn { $($body)* } }
-    };
-
-    (unsafe fn $real_fn:ident ( $va:ident : $vaty:ty,  $($v:ident : $t:ty),* ) -> $r:ty => $hook_fn:ident { $($body:tt)* }) => {
-        #[no_mangle]
-        pub unsafe extern "C" fn $real_fn ( $($v : $t),*  , $va: ...) -> $r {
-            ::std::panic::catch_unwind(|| {
-                let mut aq: std::ffi::VaListImpl;
-                aq = $va.clone();
-                $hook_fn ( $($v),* , aq )
-            }).unwrap()
-        }
-
-        // #[instrument(skip( $va, $($v),* ))]
-        pub unsafe fn $hook_fn ( $($v : $t),* , $va: $vaty) -> $r {
-            MY_DISPATCH.with(|(tracing, my_dispatch, _guard)| {
-                // println!("tracing: {}, {:?}", tracing, $va);
-                if *tracing {
-                    with_default(&my_dispatch, || {
-                        event!(Level::INFO, "{}()", stringify!($real_fn));
+            // #[instrument(skip( $va, $($v),* ))]
+            pub unsafe fn $hook_fn ( $($v : $t),* , $va: $vaty) -> $r {
+                MY_DISPATCH.with(|(tracing, my_dispatch, _guard)| {
+                    // println!("tracing: {}, {:?}", tracing, $va);
+                    if *tracing {
+                        with_default(&my_dispatch, || {
+                            event!(Level::INFO, "{}()", stringify!($real_fn));
+                            $($body)*
+                        })    
+                    } else {
                         $($body)*
-                    })    
-                } else {
-                    $($body)*
-                }
-            })
-        }
-    };
-
-    (unsafe fn $real_fn:ident ( $va:ident : $vaty:ty,  $($v:ident : $t:ty),* ) => ($hook_fn:ident, $hook_str:ident) { $($body:tt)* }) => {
-        $crate::dhook! { unsafe fn $real_fn ( $va: $vaty, $($v : $t),* ) -> () => ($hook_fn, $hook_str) { $($body)* } }
+                    }
+                })
+            }    
     };
 
     (unsafe fn $real_fn:ident ( $va:ident : $vaty:ty,  $($v:ident : $t:ty),* ) => $hook_fn:ident { $($body:tt)* }) => {
@@ -239,6 +239,8 @@ macro_rules! dhook {
 #[macro_export]
 macro_rules! real {
     ($real_fn:ident) => {
-        $real_fn.get()
+        paste! {
+            [<orig_ $real_fn>].get()
+        }
     };
 }
