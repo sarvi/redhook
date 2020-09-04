@@ -59,11 +59,11 @@ pub unsafe fn dlsym_next(symbol: &'static str) -> *const u8 {
 
 
 #[allow(non_camel_case_types)]
-pub struct readlink {__private_field: ()}
+pub struct orig_readlink {__private_field: ()}
 #[allow(non_upper_case_globals)]
-static readlink: readlink = readlink {__private_field: ()};
+static orig_readlink: orig_readlink = orig_readlink {__private_field: ()};
 
-impl readlink {
+impl orig_readlink {
     fn get(&self) -> unsafe extern fn (path: *const c_char, buf: *mut c_char, bufsiz: size_t) -> ssize_t  {
         use ::std::sync::Once;
 
@@ -78,20 +78,20 @@ impl readlink {
         }
     }
 
-    #[no_mangle]
-    pub unsafe extern "C" fn readlink(path: *const c_char, buf: *mut c_char, bufsiz: size_t) -> ssize_t {
-        println!("readlink");
-        if initialized() {
-            println!("initialized");
-            ::std::panic::catch_unwind(|| my_readlink ( path, buf, bufsiz )).ok()
-        } else {
-            println!("not initialized");
-            None
-        }.unwrap_or_else(|| readlink.get() ( path, buf, bufsiz ))
+    pub unsafe fn my_readlink(&self, path: *const c_char, buf: *mut c_char, bufsiz: size_t) -> ssize_t {
+        println!("my_readlink");
+        self.get()(path, buf, bufsiz)
     }
 }
 
-pub unsafe fn my_readlink(path: *const c_char, buf: *mut c_char, bufsiz: size_t) -> ssize_t {
-    println!("my_readlink");
-    readlink.get()(path, buf, bufsiz)
+#[no_mangle]
+pub unsafe extern "C" fn readlink(path: *const c_char, buf: *mut c_char, bufsiz: size_t) -> ssize_t {
+    println!("readlink");
+    if initialized() {
+        println!("initialized");
+        ::std::panic::catch_unwind(|| orig_readlink.my_readlink ( path, buf, bufsiz )).ok()
+    } else {
+        println!("not initialized");
+        None
+    }.unwrap_or_else(|| orig_readlink.get() ( path, buf, bufsiz ))
 }
