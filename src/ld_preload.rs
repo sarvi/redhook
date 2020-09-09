@@ -92,7 +92,7 @@ macro_rules! hook {
                         // println!("tracing: {}", tracing);
                         if *tracing {
                             with_default(&my_dispatch, || {
-                                event!(Level::INFO, "{}()", stringify!($real_fn));
+                                // event!(Level::INFO, "{}()", stringify!($real_fn));
                                 $($body)*
                             })
                         } else {
@@ -157,7 +157,7 @@ macro_rules! vhook {
                     // println!("tracing: {} {:?}", tracing, $va);
                     if *tracing {
                         with_default(&my_dispatch, || {
-                            event!(Level::INFO, "{}()", stringify!($real_fn));
+                            // event!(Level::INFO, "{}()", stringify!($real_fn));
                             $($body)*
                         })
                     } else {
@@ -220,7 +220,7 @@ macro_rules! dhook {
                     // println!("tracing: {}, {:?}", tracing, $va);
                     if *tracing {
                         with_default(&my_dispatch, || {
-                            event!(Level::INFO, "{}()", stringify!($real_fn));
+                            // event!(Level::INFO, "{}()", stringify!($real_fn));
                             $($body)*
                         })    
                     } else {
