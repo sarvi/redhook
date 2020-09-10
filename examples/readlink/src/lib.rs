@@ -5,8 +5,10 @@ extern crate ctor;
 
 
 use libc::{c_void,c_char,c_int,size_t,ssize_t};
-
+use std::io::Write;
 use std::sync::atomic;
+use std::process;
+use std::thread;
 
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod dyld_insert_libraries;
@@ -24,21 +26,19 @@ pub fn initialized() -> bool {
     INIT_STATE.load(atomic::Ordering::SeqCst)
 }
 
-// extern "C" fn initialize() {
-//     Box::new(0u8);
-//     INIT_STATE.store(true, atomic::Ordering::SeqCst);
-// }
-
-// /* Rust doesn't directly expose __attribute__((constructor)), but this
-//  * is how GNU implements it. */
-//  #[link_section = ".init_array"]
-//  pub static INITIALIZE_CTOR: extern "C" fn() = ::initialize;
+// This fn works fine when used like this:
+// print(format_args!("hello {}", 1));
+fn print(args: std::fmt::Arguments<'_>) {
+    std::io::stderr().write_fmt(args).unwrap()
+}
 
 #[ctor]
 fn initialize() {
+    print(format_args!("Constructor: begin, initialized={}, pid={}, thread_id={:?}\n", initialized(), process::id(),thread::current().id()));
     Box::new(0u8);
+    readlink_get();
     INIT_STATE.store(true, atomic::Ordering::SeqCst);
-    println!("Constructor");
+    print(format_args!("Constructor: end, initialized={}, pid={}, thread_id={:?}\n", initialized(), process::id(),thread::current().id()));
 }
 
 
@@ -57,41 +57,35 @@ pub unsafe fn dlsym_next(symbol: &'static str) -> *const u8 {
     ptr as *const u8
 }
 
-
-#[allow(non_camel_case_types)]
-pub struct orig_readlink {__private_field: ()}
-#[allow(non_upper_case_globals)]
-static orig_readlink: orig_readlink = orig_readlink {__private_field: ()};
-
-impl orig_readlink {
-    fn get(&self) -> unsafe extern fn (path: *const c_char, buf: *mut c_char, bufsiz: size_t) -> ssize_t  {
-        use ::std::sync::Once;
-
-        static mut REAL: *const u8 = 0 as *const u8;
-        static mut ONCE: Once = Once::new();
-
-        unsafe {
-            ONCE.call_once(|| {
-                REAL = dlsym_next(concat!("readlink", "\0"));
-            });
-            ::std::mem::transmute(REAL)
-        }
-    }
-
-    pub unsafe fn my_readlink(&self, path: *const c_char, buf: *mut c_char, bufsiz: size_t) -> ssize_t {
-        println!("my_readlink");
-        self.get()(path, buf, bufsiz)
-    }
-}
+type Readlink = unsafe extern "C" fn (path: *const c_char, buf: *mut c_char, bufsiz: size_t) -> ssize_t;
 
 #[no_mangle]
 pub unsafe extern "C" fn readlink(path: *const c_char, buf: *mut c_char, bufsiz: size_t) -> ssize_t {
-    println!("readlink");
-    if initialized() {
-        println!("initialized");
-        ::std::panic::catch_unwind(|| orig_readlink.my_readlink ( path, buf, bufsiz )).ok()
+    let readl:Readlink;
+    if !initialized() {
+        print(format_args!("readlink: syscall because not initialized\n"));
+        libc::syscall(libc::SYS_readlink, path, buf, bufsiz) as ssize_t
     } else {
-        println!("not initialized");
-        None
-    }.unwrap_or_else(|| orig_readlink.get() ( path, buf, bufsiz ))
+        readl = readlink_get();
+        if (readl as *const u8) == (0 as *const u8) {
+            print(format_args!("readlink: syscall\n"));
+            libc::syscall(libc::SYS_readlink, path, buf, bufsiz) as ssize_t
+        } else {
+            print(format_args!("readlink: get\n"));
+            readl(path, buf, bufsiz)
+        }
+    }
+}
+
+fn readlink_get() -> unsafe extern fn (path: *const c_char, buf: *mut c_char, bufsiz: size_t) -> ssize_t  {
+    static mut REAL: *const u8 = 0 as *const u8;
+    unsafe {
+        print(format_args!("readlink_get: REAL: {:?}\n", REAL));
+        let x=REAL;
+        if (REAL as *const u8) == (0 as *const u8) {
+            REAL = dlsym_next(concat!("readlink", "\0"));
+            print(format_args!("readlink_get: done dlsym_next: REAL: {:?}\n", REAL));
+        }
+        ::std::mem::transmute(x)
+    }    
 }

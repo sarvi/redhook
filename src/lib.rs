@@ -6,12 +6,19 @@ extern crate tracing_appender;
 extern crate tracing_subscriber;
 
 use std::sync::atomic;
+use std::io::Write;
 
 #[cfg(target_env = "gnu")]
 pub mod ld_preload;
 
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod dyld_insert_libraries;
+
+// This fn works fine when used like this:
+// print(format_args!("hello {}", 1));
+pub fn debugtoerr(args: std::fmt::Arguments<'_>) {
+    std::io::stderr().write_fmt(args).unwrap()
+}
 
 /* Some Rust library functionality (e.g., jemalloc) initializes
  * lazily, after the hooking library has inserted itself into the call

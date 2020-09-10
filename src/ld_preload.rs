@@ -73,18 +73,9 @@ macro_rules! hook {
                     }
                 }
             }
-    
-            #[no_mangle]
-            pub unsafe extern "C" fn $real_fn ( $($v : $t),* ) -> $r {
-                if $crate::initialized() {
-                    ::std::panic::catch_unwind(|| $hook_fn ( $($v),* )).ok()
-                } else {
-                    None
-                }.unwrap_or_else(|| [<orig_ $real_fn>].get() ( $($v),* ))
-            }
 
             // #[instrument(skip( $($v),* ))]
-            pub unsafe fn $hook_fn ( $($v : $t),* ) -> $r {
+            pub unsafe fn $hook_fn ($($v : $t),* ) -> $r {
                 if stringify!($real_fn) == "fopen" && !MY_DISPATCH_initialized.with(Cell::get) {
                     $($body)*
                 } else {
@@ -101,6 +92,16 @@ macro_rules! hook {
                     })
                 }
             }
+    
+            #[no_mangle]
+            pub unsafe extern "C" fn $real_fn ( $($v : $t),* ) -> $r {
+                if $crate::initialized() {
+                    ::std::panic::catch_unwind(|| $hook_fn ( $($v),* )).ok()
+                } else {
+                    None
+                }.unwrap_or_else(|| [<orig_ $real_fn>].get() ( $($v),* ))
+            }
+
         }
     };
 
@@ -109,7 +110,73 @@ macro_rules! hook {
     };
 }
 
+/* TODO: Using { $($body:tt)* } instead of $body:block) because of rustc bug refered to
+   in https://github.com/dtolnay/paste/issues/50 */
+   #[macro_export]
+   macro_rules! shook {
+   
+       (unsafe fn $real_fn:ident ( $($v:ident : $t:ty),* ) -> $r:ty => ($hook_fn:ident,$syscall:ident) { $($body:tt)* }) => {
+           paste! {
+               #[allow(non_camel_case_types)]
+               pub struct [<orig_ $real_fn>] {__private_field: ()}
+               #[allow(non_upper_case_globals)]
+               static [<orig_ $real_fn>]: [<orig_ $real_fn>] = [<orig_ $real_fn>] {__private_field: ()};
+       
+               impl [<orig_ $real_fn>] {
+                   fn get(&self) -> unsafe extern fn ( $($v : $t),* ) -> $r {
+                       static mut REAL: *const u8 = 0 as *const u8;
+                       unsafe {
+                           let x=REAL;
+                            REAL = $crate::ld_preload::dlsym_next(concat!(stringify!($real_fn), "\0"));
+                           ::std::mem::transmute(x)
+                       }
+                   }
+               }
+   
+               // #[instrument(skip( $($v),* ))]
+               pub unsafe fn $hook_fn ($($v : $t),* ) -> $r {
+                   if stringify!($real_fn) == "fopen" && !MY_DISPATCH_initialized.with(Cell::get) {
+                       $($body)*
+                   } else {
+                       MY_DISPATCH.with(|(tracing, my_dispatch, _guard)| {
+                           // println!("tracing: {}", tracing);
+                           if *tracing {
+                               with_default(&my_dispatch, || {
+                                   // event!(Level::INFO, "{}()", stringify!($real_fn));
+                                   $($body)*
+                               })
+                           } else {
+                               $($body)*
+                           }
+                       })
+                   }
+               }
+       
+               #[no_mangle]
+               pub unsafe extern "C" fn $real_fn ( $($v : $t),* ) -> $r {
+                    static mut recursion: bool = false;       
+                    if $crate::initialized() {
+                        if ([<orig_ $real_fn>].get() as *const u8) != (0 as *const u8) {
+                            ::std::panic::catch_unwind(|| $hook_fn ( $($v),* )).ok()
+                        } else {
+                            ::std::panic::catch_unwind(|| libc::syscall($syscall, $($v),* ) as $r).ok()
+                        }
+                    } else {
+                        None
+                    }.unwrap_or_else(|| libc::syscall($syscall, $($v),* ) as $r)
+               }
+   
+           }
+       };
+   
+       (unsafe fn $real_fn:ident ( $($v:ident : $t:ty),* ) => $hook_fn:ident { $($body:tt)* }) => {
+           $crate::shook! { unsafe fn $real_fn ( $($v : $t),* ) -> () => $hook_fn { $($body)* } }
+       };
+   }
+   
 
+/* TODO: Using { $($body:tt)* } instead of $body:block) because of rustc bug refered to
+   in https://github.com/dtolnay/paste/issues/50 */
 #[macro_export]
 macro_rules! vhook {
 
@@ -136,6 +203,21 @@ macro_rules! vhook {
                 }
             }
     
+            // #[instrument(skip( $va, $($v),* ))]
+            pub unsafe fn $hook_fn ( $($v : $t),*  , $va : $vaty) -> $r {
+                MY_DISPATCH.with(|(tracing, my_dispatch, _guard)| {
+                    // println!("tracing: {} {:?}", tracing, $va);
+                    if *tracing {
+                        with_default(&my_dispatch, || {
+                            // event!(Level::INFO, "{}()", stringify!($real_fn));
+                            $($body)*
+                        })
+                    } else {
+                        $($body)*
+                    }
+                })
+            }
+
             #[no_mangle]
             pub unsafe extern "C" fn $real_fn ( $($v : $t),*  , $va : $vaty) -> $r {
                 let mut ap: std::ffi::VaListImpl;
@@ -150,21 +232,6 @@ macro_rules! vhook {
                     None
                 }.unwrap_or_else(|| [<orig_ $real_fn>].get() ( $($v),*  , ap.as_va_list()))
             }
-
-            // #[instrument(skip( $va, $($v),* ))]
-            pub unsafe fn $hook_fn ( $($v : $t),*  , $va : $vaty) -> $r {
-                MY_DISPATCH.with(|(tracing, my_dispatch, _guard)| {
-                    // println!("tracing: {} {:?}", tracing, $va);
-                    if *tracing {
-                        with_default(&my_dispatch, || {
-                            // event!(Level::INFO, "{}()", stringify!($real_fn));
-                            $($body)*
-                        })
-                    } else {
-                        $($body)*
-                    }
-                })
-            }    
         }
 
     };
@@ -174,6 +241,8 @@ macro_rules! vhook {
     };
 }
 
+/* TODO: Using { $($body:tt)* } instead of $body:block) because of rustc bug refered to
+   in https://github.com/dtolnay/paste/issues/50 */
 #[macro_export]
 macro_rules! dhook {
 

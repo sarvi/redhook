@@ -49,7 +49,16 @@ popd
 pushd examples/readlinkspy
 cargo update
 cargo build
+preload libreadlinkspy ls -l /dev/stdin
 preload libreadlinkspy ls -l /dev/stdin | grep readlink
+test -f /tmp/wisk_trace.log && cat /tmp/wisk_trace.log
+popd
+
+pushd examples/safereadlinkspy
+cargo update
+cargo build
+preload libsafereadlinkspy rustc -vV
+preload libsafereadlinkspy rustc -vV | grep "binary: rustc"
 test -f /tmp/wisk_trace.log && cat /tmp/wisk_trace.log
 popd
 
