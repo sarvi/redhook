@@ -16,7 +16,7 @@ pub mod dyld_insert_libraries;
 
 // This fn works fine when used like this:
 // print(format_args!("hello {}", 1));
-pub fn debugtoerr(args: std::fmt::Arguments<'_>) {
+pub fn debug(args: std::fmt::Arguments<'_>) {
     std::io::stderr().write_fmt(args).unwrap()
 }
 

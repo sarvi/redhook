@@ -17,7 +17,6 @@ use paste::paste;
 use tracing::{Level, event, };
 use tracing::dispatcher::{with_default, Dispatch};
 use tracing_appender::non_blocking::WorkerGuard;
-use redhook::debugtoerr;
 
 
  #[ctor]
