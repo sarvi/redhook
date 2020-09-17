@@ -13,12 +13,13 @@ extern crate ctor;
 
 use core::cell::Cell;
 use std::ffi::CStr;
-use libc::{c_char,c_int,size_t,ssize_t, O_CREAT};
+use libc::{c_char,c_int,size_t,ssize_t, O_CREAT, SYS_readlink};
 use paste::paste;
 // use tracing::{instrument};
 use tracing::{Level, event, };
 use tracing::dispatcher::{with_default, Dispatch};
 use tracing_appender::non_blocking::WorkerGuard;
+use redhook::debug;
 
 thread_local! {
     #[allow(nonstandard_style)]
@@ -37,12 +38,14 @@ thread_local! {
  fn initialize() {
      redhook::initialize();
      println!("Constructor");
+     MY_DISPATCH.with(|(_tracing, _my_dispatch, _guard)| { });
  }
 
 
 
 hook! {
-    unsafe fn readlink(path: *const c_char, buf: *mut c_char, bufsiz: size_t) -> ssize_t => my_readlink {
+    unsafe fn readlink(path: *const c_char, buf: *mut c_char, bufsiz: size_t) -> ssize_t
+            => (my_readlink,SYS_readlink, true) {
         event!(Level::INFO, "readlink({})", CStr::from_ptr(path).to_string_lossy());
         println!("readlink({})", CStr::from_ptr(path).to_string_lossy());
         real!(readlink)(path, buf, bufsiz)
@@ -77,6 +80,26 @@ dhook! {
         } else {
             println!("open({},{})", CStr::from_ptr(pathname).to_string_lossy(), flags);
             real!(open)(pathname, flags)
+        }
+    }
+}
+
+#[cfg(target_arch = "x86_64")]
+dhook! {
+    unsafe fn open64(args: std::ffi::VaListImpl, pathname: *const c_char, flags: c_int ) -> c_int => (my_open64, true) {
+        debug(format_args!("open64() intercepted {}\n", CStr::from_ptr(pathname).to_string_lossy()));
+        if (flags & O_CREAT) == O_CREAT {
+            let mut ap: std::ffi::VaListImpl = args.clone();
+            let mode: c_int = ap.arg::<c_int>();
+            event!(Level::INFO, "open64({}, {}, {})", CStr::from_ptr(pathname).to_string_lossy(), flags, mode);
+            // TRACKER.reportopen(pathname,flags,mode);
+            debug(format_args!("open64() continue\n"));
+            real!(open64)(pathname, flags, mode)
+        } else {
+            event!(Level::INFO, "open64({}, {})", CStr::from_ptr(pathname).to_string_lossy(), flags);
+            // TRACKER.reportopen(pathname,flags,0);
+            debug(format_args!("open64() continue\n"));
+            real!(open64)(pathname, flags)
         }
     }
 }

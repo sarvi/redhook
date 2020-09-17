@@ -12,7 +12,8 @@ extern crate ctor;
 
 // use tracing::{instrument};
 use core::cell::Cell;
-use libc::{size_t,ssize_t,c_char};
+use libc::{SYS_readlink,size_t,ssize_t,c_char};
+use std::ffi::CStr;
 use paste::paste;
 use tracing::{Level, event, };
 use tracing::dispatcher::{with_default, Dispatch};
@@ -39,7 +40,8 @@ thread_local! {
 }
 
 hook! {
-    unsafe fn readlink(path: *const c_char, buf: *mut c_char, bufsiz: size_t) -> ssize_t => my_readlink {
+    unsafe fn readlink(path: *const c_char, buf: *mut c_char, bufsiz: size_t) -> ssize_t => (my_readlink,SYS_readlink,true) {
+        event!(Level::INFO, "readlink({})", CStr::from_ptr(path).to_string_lossy());
         if let Ok(path) = std::str::from_utf8(std::ffi::CStr::from_ptr(path).to_bytes()) {
             if path == "test-panic" {
                 panic!("Testing panics");

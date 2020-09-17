@@ -48,6 +48,14 @@ int main(int argc, char *argv[])
         close(open("/tmp/created.file", O_CREAT|O_WRONLY, 0));
     } else if (strcmp(argv[1], "creat-r") == 0) {
         close(open("/tmp/created.file", O_RDONLY, 0));
+    } else if (strcmp(argv[1], "open-cw") == 0) {
+        close(open("/tmp/open.file", O_CREAT|O_WRONLY, 0));
+    } else if (strcmp(argv[1], "open-r") == 0) {
+        close(open("/tmp/open.file", O_RDONLY, 0));
+    } else if (strcmp(argv[1], "open64-cw") == 0) {
+        close(open64("/tmp/open64.file", O_CREAT|O_WRONLY, 0));
+    } else if (strcmp(argv[1], "open64-r") == 0) {
+        close(open64("/tmp/open64.file", O_RDONLY, 0));
     } else if (strcmp(argv[1], "execv") == 0) {
         char *eargv[] = {"ls", "-l", "/usr/bin/ls", NULL};
         execv("/bin/ls", eargv);
@@ -69,6 +77,9 @@ int main(int argc, char *argv[])
     } else if (strcmp(argv[1], "execle") == 0) {
         char *env[] = {"PATH=/nothing:", NULL};
         execle("/bin/ls", "ls", "-l", "/usr/bin/ls", NULL, env);
+    } else {
+        puts("Unknown command!!");
+        exit(-1);
     }
     return 0;
 }
