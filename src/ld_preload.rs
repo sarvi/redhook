@@ -4,13 +4,7 @@ extern crate tracing;
 extern crate tracing_appender;
 extern crate tracing_subscriber;
 
-use std::env;
 use libc::{c_void,c_char};
-// use tracing::instrument;
-use tracing::Level;
-use tracing::dispatcher::Dispatch;
-use tracing_appender::non_blocking::WorkerGuard;
-use tracing_subscriber::FmtSubscriber;
 
 
 #[link(name = "dl")]
@@ -28,23 +22,6 @@ pub unsafe fn dlsym_next(symbol: &'static str) -> *const u8 {
     ptr as *const u8
 }
 
-pub fn make_dispatch(tracevar: &str) -> (bool, Dispatch, WorkerGuard) {
-    let file_appender;
-    let tracing;
-    if let Ok(tracefile) =  env::var(tracevar) {
-        file_appender = tracing_appender::rolling::never("", tracefile);
-        tracing = true
-    } else {
-        file_appender = tracing_appender::rolling::never("", "/dev/null");
-        tracing = false
-    }
-    let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::TRACE)
-        .with_writer(non_blocking)
-        .finish();
-    (tracing, Dispatch::new(subscriber), guard)
-}
 
 /* TODO: Using { $($body:tt)* } instead of $body:block) because of rustc bug refered to
    in https://github.com/dtolnay/paste/issues/50 */
@@ -81,21 +58,7 @@ macro_rules! hook {
 
             // #[instrument(skip( $($v),* ))]
             pub unsafe fn $hook_fn ($($v : $t),* ) -> $r {
-                if stringify!($real_fn) == "fopen" && !MY_DISPATCH_initialized.with(Cell::get) {
-                    $($body)*
-                } else {
-                    MY_DISPATCH.with(|(tracing, my_dispatch, _guard)| {
-                        // println!("tracing: {}", tracing);
-                        if *tracing {
-                            with_default(&my_dispatch, || {
-                                // event!(Level::INFO, "{}()", stringify!($real_fn));
-                                $($body)*
-                            })
-                        } else {
-                            $($body)*
-                        }
-                    })
-                }
+                $($body)*
             }
     
             #[no_mangle]
@@ -163,35 +126,7 @@ macro_rules! vhook {
 
             // #[instrument(skip( $va, $($v),* ))]
             pub unsafe fn $hook_fn ( $($v : $t),*  , $va : $vaty) -> $r {
-                if $reqforinit {
-                    if !MY_DISPATCH_initialized.with(Cell::get) {
-                        $($body)*
-                    } else {
-                        MY_DISPATCH.with(|(tracing, my_dispatch, _guard)| {
-                            // println!("tracing: {}, {:?}", tracing, $va);
-                            if *tracing {
-                                with_default(&my_dispatch, || {
-                                    // event!(Level::INFO, "{}()", stringify!($real_fn));
-                                    $($body)*
-                                })
-                            } else {
-                                $($body)*
-                            }
-                        })
-                    }
-                } else {
-                    MY_DISPATCH.with(|(tracing, my_dispatch, _guard)| {
-                        // println!("tracing: {}, {:?}", tracing, $va);
-                        if *tracing {
-                            with_default(&my_dispatch, || {
-                                // event!(Level::INFO, "{}()", stringify!($real_fn));
-                                $($body)*
-                            })
-                        } else {
-                            $($body)*
-                        }
-                    })
-                }
+                $($body)*
             }
 
             #[no_mangle]
@@ -270,35 +205,7 @@ macro_rules! dhook {
 
             // #[instrument(skip( $va, $($v),* ))]
             pub unsafe fn $hook_fn ( $($v : $t),* , $va: $vaty) -> $r {
-                if $reqforinit {
-                    if !MY_DISPATCH_initialized.with(Cell::get) {
-                        $($body)*
-                    } else {
-                        MY_DISPATCH.with(|(tracing, my_dispatch, _guard)| {
-                            // println!("tracing: {}, {:?}", tracing, $va);
-                            if *tracing {
-                                with_default(&my_dispatch, || {
-                                    // event!(Level::INFO, "{}()", stringify!($real_fn));
-                                    $($body)*
-                                })
-                            } else {
-                                $($body)*
-                            }
-                        })
-                    }
-                } else {
-                    MY_DISPATCH.with(|(tracing, my_dispatch, _guard)| {
-                        // println!("tracing: {}, {:?}", tracing, $va);
-                        if *tracing {
-                            with_default(&my_dispatch, || {
-                                // event!(Level::INFO, "{}()", stringify!($real_fn));
-                                $($body)*
-                            })
-                        } else {
-                            $($body)*
-                        }
-                    })
-                }
+                $($body)*
             }    
     };
 
